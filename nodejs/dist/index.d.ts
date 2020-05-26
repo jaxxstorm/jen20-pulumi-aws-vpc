@@ -1,7 +1,7 @@
 import * as aws from "@pulumi/aws";
 import { ComponentResource, ComponentResourceOptions, Input, Output } from "@pulumi/pulumi";
 export interface VpcArgs {
-    enableNatGateway: boolean;
+    enableNatGateway?: boolean;
     description: string;
     baseTags: aws.Tags;
     baseCidr: string;

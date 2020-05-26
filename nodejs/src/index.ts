@@ -54,7 +54,7 @@ export class Vpc extends ComponentResource {
         this.description = args.description;
         this.baseTags = args.baseTags;
 
-        this.enableNatGateway = args.enableNatGateway;
+        this.enableNatGateway = args.enableNatGateway || true;
 
         // VPC
         this.vpc = new aws.ec2.Vpc(`${name}-vpc`, {
