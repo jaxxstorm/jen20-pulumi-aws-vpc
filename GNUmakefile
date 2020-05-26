@@ -1,28 +1,28 @@
 SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
-NODEJS_ROOT := $(PROJECT_ROOT)/nodejs
-PYTHON_ROOT := $(PROJECT_ROOT)/python
+NODEJS_MAKEFILE := Makefile.nodejs
+PYTHON_MAKEFILE := Makefile.python
 
 .PHONY: bootstrap
 bootstrap:
-	@$(MAKE) -C $(NODEJS_ROOT) $@
-	@$(MAKE) -C $(PYTHON_ROOT) $@
+	@$(MAKE) -f $(NODEJS_MAKEFILE) $@
+	@$(MAKE) -f $(PYTHON_MAKEFILE) $@
 
 .PHONY: lint
 lint:
-	@$(MAKE) -C $(NODEJS_ROOT) $@
-	@$(MAKE) -C $(PYTHON_ROOT) $@
+	@$(MAKE) -f $(NODEJS_MAKEFILE) $@
+	@$(MAKE) -f $(PYTHON_MAKEFILE) $@
 
 .PHONY: test
 test:
-	@$(MAKE) -C $(NODEJS_ROOT) $@
-	@$(MAKE) -C $(PYTHON_ROOT) $@
+	@$(MAKE) -f $(NODEJS_MAKEFILE) $@
+	@$(MAKE) -f $(PYTHON_MAKEFILE) $@
 
 .PHONY: dist
 dist:
-	@$(MAKE) -C $(NODEJS_ROOT) $@
-	@$(MAKE) -C $(PYTHON_ROOT) $@
+	@$(MAKE) -f $(NODEJS_MAKEFILE) $@
+	@$(MAKE) -f $(PYTHON_MAKEFILE) $@
 
 .PHONY: travis
 travis: bootstrap test lint dist

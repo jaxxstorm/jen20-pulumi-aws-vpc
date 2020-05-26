@@ -4,8 +4,8 @@
   "description": "Good-Practice AWS VPC Component for Pulumi",
   "author": "James Nugent",
   "license": "MPL-2.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "nodejs/dist/index.js",
+  "types": "nodejs/dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jen20/pulumi-aws-vpc.git"
@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "mocha --require ts-node/register tests/*.ts"
+    "test": "mocha --require ts-node/register nodejs/tests/*.ts"
   },
   "bugs": {
     "url": "https://github.com/jen20/pulumi-aws-vpc/issues"

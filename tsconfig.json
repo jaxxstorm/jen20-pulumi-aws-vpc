@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"outDir": "dist",
+		"outDir": "dist/nodejs",
 		"target": "es6",
 		"module": "commonjs",
 		"moduleResolution": "node",
@@ -15,8 +15,8 @@
 		"strictNullChecks": true
 	},
 	"files": [
-      "src/index.ts",
-      "src/subnetDistributor.ts"
+      "nodejs/src/index.ts",
+      "nodejs/src/subnetDistributor.ts"
 	]
 }
 
