@@ -11,7 +11,7 @@ import {ComponentResource, ComponentResourceOptions, Input, Output} from "@pulum
 import {SubnetDistributor} from "./subnetDistributor";
 
 export interface VpcArgs {
-    enableNatGateway: boolean;
+    enableNatGateway?: boolean;
     description: string;
     baseTags: aws.Tags;
 
