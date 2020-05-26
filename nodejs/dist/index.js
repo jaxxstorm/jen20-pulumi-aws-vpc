@@ -24,7 +24,7 @@ class Vpc extends pulumi_1.ComponentResource {
         this.name = name;
         this.description = args.description;
         this.baseTags = args.baseTags;
-        this.enableNatGateway = args.enableNatGateway || true;
+        this.enableNatGateway = (args.enableNatGateway || true);
         // VPC
         this.vpc = new aws.ec2.Vpc(`${name}-vpc`, {
             cidrBlock: args.baseCidr,
