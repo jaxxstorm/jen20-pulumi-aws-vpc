@@ -7,6 +7,7 @@
  * http://mozilla.org/MPL/2.0/.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.SubnetDistributor = void 0;
 /**
  * A SubnetDistributor is used to split a given CIDR block into a number of
  * subnets.

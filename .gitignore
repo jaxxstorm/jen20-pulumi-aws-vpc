@@ -3,7 +3,6 @@ Pulumi.*.yaml
 .pulumi/
 
 **/node_modules
-dist
 
 # Created by .ignore support plugin (hsz.mobi)
 ### VisualStudioCode template

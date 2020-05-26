@@ -7,6 +7,7 @@
  * http://mozilla.org/MPL/2.0/.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Vpc = void 0;
 const aws = require("@pulumi/aws");
 const pulumi_1 = require("@pulumi/pulumi");
 const subnetDistributor_1 = require("./subnetDistributor");
@@ -18,10 +19,12 @@ class Vpc extends pulumi_1.ComponentResource {
         this.privateRouteTables = [];
         this.natGateways = [];
         this.natElasticIpAddresses = [];
+        this.enableNatGateway = true;
         // Make base info available to other methods.
         this.name = name;
         this.description = args.description;
         this.baseTags = args.baseTags;
+        this.enableNatGateway = args.enableNatGateway;
         // VPC
         this.vpc = new aws.ec2.Vpc(`${name}-vpc`, {
             cidrBlock: args.baseCidr,
@@ -104,37 +107,39 @@ class Vpc extends pulumi_1.ComponentResource {
                 }, { parent: this.publicRouteTable });
             });
         }
-        // Create a NAT Gateway and appropriate route table for each private subnet
-        for (let index = 0; index < this.privateSubnets.length; index++) {
-            const privateSubnet = this.privateSubnets[index];
-            const publicSubnet = this.publicSubnets[index];
-            this.natElasticIpAddresses.push(new aws.ec2.Eip(`${name}-nat-${index + 1}`, {
-                tags: this.resourceTags({
-                    Name: `${args.description} NAT Gateway EIP ${index + 1}`,
-                }),
-            }, { parent: privateSubnet }));
-            this.natGateways.push(new aws.ec2.NatGateway(`${name}-nat-gateway-${index + 1}`, {
-                allocationId: this.natElasticIpAddresses[index].id,
-                subnetId: publicSubnet.id,
-                tags: this.resourceTags({
-                    Name: `${args.description} NAT Gateway ${index + 1}`,
-                }),
-            }, { parent: privateSubnet }));
-            this.privateRouteTables.push(new aws.ec2.RouteTable(`${name}-private-rt-${index + 1}`, {
-                vpcId: this.vpc.id,
-                tags: this.resourceTags({
-                    Name: `${args.description} Private Subnet RT ${index + 1}`,
-                }),
-            }, { parent: privateSubnet }));
-            new aws.ec2.Route(`${name}-route-private-sn-to-nat-${index + 1}`, {
-                routeTableId: this.privateRouteTables[index].id,
-                destinationCidrBlock: "0.0.0.0/0",
-                natGatewayId: this.natGateways[index].id,
-            }, { parent: this.privateRouteTables[index] });
-            new aws.ec2.RouteTableAssociation(`${name}-private-rta-${index + 1}`, {
-                subnetId: privateSubnet.id,
-                routeTableId: this.privateRouteTables[index].id,
-            }, { parent: this.privateRouteTables[index] });
+        if (this.enableNatGateway) {
+            // Create a NAT Gateway and appropriate route table for each private subnet
+            for (let index = 0; index < this.privateSubnets.length; index++) {
+                const privateSubnet = this.privateSubnets[index];
+                const publicSubnet = this.publicSubnets[index];
+                this.natElasticIpAddresses.push(new aws.ec2.Eip(`${name}-nat-${index + 1}`, {
+                    tags: this.resourceTags({
+                        Name: `${args.description} NAT Gateway EIP ${index + 1}`,
+                    }),
+                }, { parent: privateSubnet }));
+                this.natGateways.push(new aws.ec2.NatGateway(`${name}-nat-gateway-${index + 1}`, {
+                    allocationId: this.natElasticIpAddresses[index].id,
+                    subnetId: publicSubnet.id,
+                    tags: this.resourceTags({
+                        Name: `${args.description} NAT Gateway ${index + 1}`,
+                    }),
+                }, { parent: privateSubnet }));
+                this.privateRouteTables.push(new aws.ec2.RouteTable(`${name}-private-rt-${index + 1}`, {
+                    vpcId: this.vpc.id,
+                    tags: this.resourceTags({
+                        Name: `${args.description} Private Subnet RT ${index + 1}`,
+                    }),
+                }, { parent: privateSubnet }));
+                new aws.ec2.Route(`${name}-route-private-sn-to-nat-${index + 1}`, {
+                    routeTableId: this.privateRouteTables[index].id,
+                    destinationCidrBlock: "0.0.0.0/0",
+                    natGatewayId: this.natGateways[index].id,
+                }, { parent: this.privateRouteTables[index] });
+                new aws.ec2.RouteTableAssociation(`${name}-private-rta-${index + 1}`, {
+                    subnetId: privateSubnet.id,
+                    routeTableId: this.privateRouteTables[index].id,
+                }, { parent: this.privateRouteTables[index] });
+            }
         }
         // Create gateway endpoints if necessary
         if (args.endpoints.s3) {
