@@ -13,6 +13,7 @@ const pulumi_1 = require("@pulumi/pulumi");
 const subnetDistributor_1 = require("./subnetDistributor");
 class Vpc extends pulumi_1.ComponentResource {
     constructor(name, args, opts) {
+        var _a;
         super("jen20:aws-vpc", name, {}, opts);
         this.publicSubnets = [];
         this.privateSubnets = [];
@@ -24,7 +25,7 @@ class Vpc extends pulumi_1.ComponentResource {
         this.name = name;
         this.description = args.description;
         this.baseTags = args.baseTags;
-        this.enableNatGateway = (args.enableNatGateway || true);
+        this.enableNatGateway = ((_a = args.enableNatGateway) !== null && _a !== void 0 ? _a : true);
         // VPC
         this.vpc = new aws.ec2.Vpc(`${name}-vpc`, {
             cidrBlock: args.baseCidr,
