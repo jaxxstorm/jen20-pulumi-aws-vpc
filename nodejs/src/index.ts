@@ -146,11 +146,19 @@ export class Vpc extends ComponentResource {
                 }, {parent: this.publicRouteTable});
             });
         }
-        if (this.enableNatGateway) {
             // Create a NAT Gateway and appropriate route table for each private subnet
-            for (let index = 0; index < this.privateSubnets.length; index++) {
-                const privateSubnet = this.privateSubnets[index];
-                const publicSubnet = this.publicSubnets[index];
+        for (let index = 0; index < this.privateSubnets.length; index++) {
+            const privateSubnet = this.privateSubnets[index];
+            const publicSubnet = this.publicSubnets[index];
+
+            this.privateRouteTables.push(new aws.ec2.RouteTable(`${name}-private-rt-${index + 1}`, {
+                vpcId: this.vpc.id,
+                tags: this.resourceTags({
+                    Name: `${args.description} Private Subnet RT ${index + 1}`,
+                }),
+            }, {parent: privateSubnet}));
+
+            if (this.enableNatGateway) {
 
                 this.natElasticIpAddresses.push(new aws.ec2.Eip(`${name}-nat-${index + 1}`, {
                     tags: this.resourceTags({
@@ -163,13 +171,6 @@ export class Vpc extends ComponentResource {
                     subnetId: publicSubnet.id,
                     tags: this.resourceTags({
                         Name: `${args.description} NAT Gateway ${index + 1}`,
-                    }),
-                }, {parent: privateSubnet}));
-
-                this.privateRouteTables.push(new aws.ec2.RouteTable(`${name}-private-rt-${index + 1}`, {
-                    vpcId: this.vpc.id,
-                    tags: this.resourceTags({
-                        Name: `${args.description} Private Subnet RT ${index + 1}`,
                     }),
                 }, {parent: privateSubnet}));
 
