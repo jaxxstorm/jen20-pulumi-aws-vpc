@@ -1,4 +1,4 @@
-module github.com/jaxxstorm/pulumi-aws-vpc
+module github.com/jaxxstorm/pulumi-aws-vpc/go
 
 go 1.14
 
