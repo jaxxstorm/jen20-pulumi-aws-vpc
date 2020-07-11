@@ -9,7 +9,9 @@ import (
 type Vpc struct {
 	pulumi.ResourceState
 
-	VPC *ec2.Vpc
+	ID pulumi.IDOutput `pulumi:"ID"`
+	Cidr pulumi.StringOutput `pulumi:"Cidr"`
+	Arn pulumi.StringOutput `pulumi:"Arn"`
 }
 
 type VpcArgs struct {
@@ -19,7 +21,7 @@ type VpcArgs struct {
 func NewVpc(ctx *pulumi.Context, name string, args VpcArgs, opts ...pulumi.ResourceOption) (*Vpc, error) {
 	vpc := &Vpc{}
 
-	_, err := ec2.NewVpc(ctx, fmt.Sprintf("%s-vpc", name), &ec2.VpcArgs{
+	awsVpc, err := ec2.NewVpc(ctx, fmt.Sprintf("%s-vpc", name), &ec2.VpcArgs{
 		CidrBlock: args.BaseCidr,
 		EnableDnsSupport: pulumi.Bool(true),
 		EnableDnsHostnames: pulumi.Bool(true),
@@ -27,12 +29,22 @@ func NewVpc(ctx *pulumi.Context, name string, args VpcArgs, opts ...pulumi.Resou
 	if err != nil {
 		return nil, err
 	}
-	
+
+	vpc.ID = awsVpc.ID()
+	vpc.Cidr = awsVpc.CidrBlock
+	vpc.Arn = awsVpc.Arn
+
 	// Register component resource
 	err = ctx.RegisterComponentResource("jen20:aws-vpc", name, vpc, opts...)
 	if err != nil {
 		return nil, err
 	}
+
+	ctx.RegisterResourceOutputs(vpc, pulumi.Map{
+		"ID": awsVpc.ID(),
+		"Cidr": awsVpc.CidrBlock,
+		"Arn": awsVpc.Arn,
+	})
 
 	return vpc, nil
 }
