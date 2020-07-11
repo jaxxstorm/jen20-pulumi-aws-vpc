@@ -17,8 +17,8 @@ type Vpc struct {
 }
 
 type Args struct {
-	BaseCidr string
-	ZoneName pulumi.String
+	BaseCidr              string
+	ZoneName              pulumi.String
 	AvailabilityZoneNames pulumi.StringArray
 }
 
@@ -90,8 +90,8 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 	for index, subnet := range privateSubnets {
 		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-private-%d", name, index+1), &ec2.SubnetArgs{
-			VpcId: awsVpc.ID(),
-			CidrBlock: pulumi.String(subnet),
+			VpcId:            awsVpc.ID(),
+			CidrBlock:        pulumi.String(subnet),
 			AvailabilityZone: args.AvailabilityZoneNames[index],
 		}, pulumi.Parent(awsVpc))
 		if err != nil {
@@ -101,16 +101,15 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 	for index, subnet := range publicSubnets {
 		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-public-%d", name, index+1), &ec2.SubnetArgs{
-			VpcId: awsVpc.ID(),
-			CidrBlock: pulumi.String(subnet),
+			VpcId:               awsVpc.ID(),
+			CidrBlock:           pulumi.String(subnet),
 			MapPublicIpOnLaunch: pulumi.Bool(true),
-			AvailabilityZone: args.AvailabilityZoneNames[index],
+			AvailabilityZone:    args.AvailabilityZoneNames[index],
 		}, pulumi.Parent(awsVpc))
 		if err != nil {
 			return nil, err
 		}
 	}
-
 
 	// Register component resource
 	err = ctx.RegisterComponentResource("jen20:aws-vpc", name, vpc, opts...)
