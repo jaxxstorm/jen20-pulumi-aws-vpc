@@ -8,6 +8,8 @@ import (
 
 type Vpc struct {
 	pulumi.ResourceState
+
+	VPC *ec2.Vpc
 }
 
 type VpcArgs struct {
@@ -21,7 +23,7 @@ func NewVpc(ctx *pulumi.Context, name string, args VpcArgs, opts ...pulumi.Resou
 		CidrBlock: args.BaseCidr,
 		EnableDnsSupport: pulumi.Bool(true),
 		EnableDnsHostnames: pulumi.Bool(true),
-	})
+	}, pulumi.Parent(vpc))
 	if err != nil {
 		return nil, err
 	}
