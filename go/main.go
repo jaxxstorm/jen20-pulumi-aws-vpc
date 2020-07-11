@@ -11,14 +11,14 @@ type Vpc struct {
 }
 
 type VpcArgs struct {
-	baseCidr pulumi.String
+	BaseCidr pulumi.String
 }
 
 func NewVpc(ctx *pulumi.Context, name string, args VpcArgs, opts ...pulumi.ResourceOption) (*Vpc, error) {
 	vpc := &Vpc{}
 
 	_, err := ec2.NewVpc(ctx, fmt.Sprintf("%s-vpc", name), &ec2.VpcArgs{
-		CidrBlock: args.baseCidr,
+		CidrBlock: args.BaseCidr,
 		EnableDnsSupport: pulumi.Bool(true),
 		EnableDnsHostnames: pulumi.Bool(true),
 	})
