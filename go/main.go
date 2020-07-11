@@ -83,17 +83,29 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		}
 	}
 
-	privateSubnets, _, err := SubnetDistributor(args.BaseCidr, len(args.AvailabilityZoneNames))
+	privateSubnets, publicSubnets, err := SubnetDistributor(args.BaseCidr, len(args.AvailabilityZoneNames))
 	if err != nil {
 		return nil, err
 	}
 
 	for index, subnet := range privateSubnets {
-		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-private-%i", name, index+1), &ec2.SubnetArgs{
+		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-private-%d", name, index+1), &ec2.SubnetArgs{
 			VpcId: awsVpc.ID(),
 			CidrBlock: pulumi.String(subnet),
 			AvailabilityZone: args.AvailabilityZoneNames[index],
-		})
+		}, pulumi.Parent(awsVpc))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for index, subnet := range publicSubnets {
+		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-public-%d", name, index+1), &ec2.SubnetArgs{
+			VpcId: awsVpc.ID(),
+			CidrBlock: pulumi.String(subnet),
+			MapPublicIpOnLaunch: pulumi.Bool(true),
+			AvailabilityZone: args.AvailabilityZoneNames[index],
+		}, pulumi.Parent(awsVpc))
 		if err != nil {
 			return nil, err
 		}
