@@ -180,7 +180,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		}
 
 		_, err = ec2.NewRoute(ctx, fmt.Sprintf("%s-route-private-sn-to-nat-%d", name, index+1), &ec2.RouteArgs{
-			RouteTableId:         subnet.ID(),
+			RouteTableId:         privateRouteTable.ID(),
 			DestinationCidrBlock: pulumi.String("0.0.0.0/0"),
 			NatGatewayId:         natGateway.ID(),
 		}, pulumi.Parent(privateRouteTable))
