@@ -19,6 +19,7 @@ type Vpc struct {
 	pulumi.ResourceState
 
 	ID             pulumi.IDOutput          `pulumi:"ID"`
+	Args		   Args						`pulumi:"Args"`
 	Cidr           pulumi.StringOutput      `pulumi:"Cidr"`
 	Arn            pulumi.StringOutput      `pulumi:"Arn"`
 	Vpc            ec2.Vpc                  `pulumi:"Vpc"`
@@ -312,7 +313,11 @@ func (vpc Vpc) EnableFlowLoggingToCloudWatchLogs(ctx *pulumi.Context, name strin
 		return err
 	}
 
-	flowlogLogGroup, err := cloudwatch.NewLogGroup(ctx, fmt.Sprintf("%s-vpc-flow-logs", name), &cloudwatch.LogGroupArgs{}, pulumi.Parent(flowLogsIAMRole))
+	flowlogLogGroup, err := cloudwatch.NewLogGroup(ctx, fmt.Sprintf("%s-vpc-flow-logs", name), &cloudwatch.LogGroupArgs{
+		Tags: resourceTags(vpc.Args.BaseTags, pulumi.StringMap{
+			"Name": pulumi.Sprintf("%s VPC Flow Logs", vpc.Args.Description),
+		}),
+	}, pulumi.Parent(flowLogsIAMRole))
 	if err != nil {
 		return err
 	}
