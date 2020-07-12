@@ -8,6 +8,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v2/go/pulumi"
 )
 
+// Vpc is the return type of the package
 type Vpc struct {
 	pulumi.ResourceState
 
@@ -16,12 +17,14 @@ type Vpc struct {
 	Arn  pulumi.StringOutput `pulumi:"Arn"`
 }
 
+// Args are the arguments passed to the resource
 type Args struct {
 	BaseCidr              string
 	ZoneName              pulumi.String
 	AvailabilityZoneNames pulumi.StringArray
 }
 
+// creates a new VPC
 func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.ResourceOption) (*Vpc, error) {
 	vpc := &Vpc{}
 
@@ -41,7 +44,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 	vpc.Arn = awsVpc.Arn
 
 	// add an internet gateway
-	_, err = ec2.NewInternetGateway(ctx, fmt.Sprintf("%s-igw", name), &ec2.InternetGatewayArgs{
+	igw, err := ec2.NewInternetGateway(ctx, fmt.Sprintf("%s-igw", name), &ec2.InternetGatewayArgs{
 		VpcId: awsVpc.ID(),
 	}, pulumi.Parent(awsVpc))
 
@@ -83,11 +86,13 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		}
 	}
 
+	// returns the subnets as calculated by the subnet distributor
 	privateSubnets, publicSubnets, err := SubnetDistributor(args.BaseCidr, len(args.AvailabilityZoneNames))
 	if err != nil {
 		return nil, err
 	}
 
+	// loop over all the private subnets and create
 	for index, subnet := range privateSubnets {
 		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-private-%d", name, index+1), &ec2.SubnetArgs{
 			VpcId:            awsVpc.ID(),
@@ -99,13 +104,48 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		}
 	}
 
+	// for storing the public subnets
+	var awsPublicSubnets []ec2.Subnet
+	// loop over all the private subnets and create
 	for index, subnet := range publicSubnets {
-		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-public-%d", name, index+1), &ec2.SubnetArgs{
+		pSubnet, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-public-%d", name, index+1), &ec2.SubnetArgs{
 			VpcId:               awsVpc.ID(),
 			CidrBlock:           pulumi.String(subnet),
 			MapPublicIpOnLaunch: pulumi.Bool(true),
 			AvailabilityZone:    args.AvailabilityZoneNames[index],
 		}, pulumi.Parent(awsVpc))
+
+		// append to a slice of public subnets for use later
+		awsPublicSubnets = append(awsPublicSubnets, *pSubnet)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// adopt the default route table and make it usable for public subnets
+	publicRouteTable, err := ec2.NewDefaultRouteTable(ctx, fmt.Sprintf("%s-public-rt", name), &ec2.DefaultRouteTableArgs{
+		DefaultRouteTableId: awsVpc.DefaultRouteTableId,
+	}, pulumi.Parent(awsVpc))
+	if err != nil {
+		return nil, err
+	}
+
+	// route all public subnets to internet gateway
+	_, err = ec2.NewRoute(ctx, fmt.Sprintf("%s-route-public-sn-to-ig", name), &ec2.RouteArgs{
+		RouteTableId:         publicRouteTable.ID(),
+		DestinationCidrBlock: pulumi.String("0.0.0.0/0"),
+		GatewayId:            igw.ID(),
+	}, pulumi.Parent(publicRouteTable))
+	if err != nil {
+		return nil, err
+	}
+
+	for index, subnet := range awsPublicSubnets {
+		_, err = ec2.NewRouteTableAssociation(ctx, fmt.Sprintf("%s-public-rta-%d", name, index+1), &ec2.RouteTableAssociationArgs{
+			SubnetId:     subnet.ID(),
+			RouteTableId: publicRouteTable.ID(),
+		}, pulumi.Parent(publicRouteTable))
 		if err != nil {
 			return nil, err
 		}
