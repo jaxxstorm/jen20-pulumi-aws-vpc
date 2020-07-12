@@ -43,6 +43,7 @@ type Args struct {
 
 func resourceTags(tags pulumi.StringMap, baseTags pulumi.StringMap) pulumi.StringMap {
 	mergo.Merge(&tags, baseTags)
+	return tags
 }
 
 // creates a new VPC
