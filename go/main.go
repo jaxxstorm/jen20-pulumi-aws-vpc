@@ -3,6 +3,7 @@ package vpc
 import (
 	"fmt"
 
+	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/config"
 	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/ec2"
 	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/route53"
 	"github.com/pulumi/pulumi/sdk/v2/go/pulumi"
@@ -17,11 +18,17 @@ type Vpc struct {
 	Arn  pulumi.StringOutput `pulumi:"Arn"`
 }
 
+type Endpoints struct {
+	S3       bool
+	DynamoDB bool
+}
+
 // Args are the arguments passed to the resource
 type Args struct {
 	BaseCidr              string
 	ZoneName              pulumi.String
 	AvailabilityZoneNames pulumi.StringArray
+	Endpoints             Endpoints
 }
 
 // creates a new VPC
@@ -158,6 +165,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		}
 	}
 
+	// sets up the routing for private subnets via a NAT gateway
 	for index, subnet := range awsPrivateSubnets {
 		elasticIP, err := ec2.NewEip(ctx, fmt.Sprintf("%s-nat-%d", name, index+1), &ec2.EipArgs{}, pulumi.Parent(&subnet))
 		if err != nil {
@@ -196,6 +204,27 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 			return nil, err
 		}
 	}
+
+	// set up endpoints
+	if args.Endpoints.S3 {
+		_, err = ec2.NewVpcEndpoint(ctx, fmt.Sprintf("%s-s3-endpoint", name), &ec2.VpcEndpointArgs{
+			VpcId: awsVpc.ID(),
+			ServiceName: pulumi.String(fmt.Sprintf("com.amazonaws.%s.s3", config.GetRegion(ctx))),
+		}, pulumi.Parent(awsVpc))
+		if err != nil {
+			return nil, err
+		}
+	}
+	if args.Endpoints.DynamoDB {
+		_, err = ec2.NewVpcEndpoint(ctx, fmt.Sprintf("%s-dynamodb-endpoint", name), &ec2.VpcEndpointArgs{
+			VpcId: awsVpc.ID(),
+			ServiceName: pulumi.String(fmt.Sprintf("com.amazonaws.%s.dynamodb", config.GetRegion(ctx))),
+		}, pulumi.Parent(awsVpc))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Register component resource
 	err = ctx.RegisterComponentResource("jen20:aws-vpc", name, vpc, opts...)
 	if err != nil {
