@@ -17,9 +17,11 @@ import (
 type Vpc struct {
 	pulumi.ResourceState
 
-	ID   pulumi.IDOutput     `pulumi:"ID"`
-	Cidr pulumi.StringOutput `pulumi:"Cidr"`
-	Arn  pulumi.StringOutput `pulumi:"Arn"`
+	ID             pulumi.IDOutput          `pulumi:"ID"`
+	Cidr           pulumi.StringOutput      `pulumi:"Cidr"`
+	Arn            pulumi.StringOutput      `pulumi:"Arn"`
+	PublicSubnets  pulumi.StringArrayOutput `pulumi:"PublicSubnets"`
+	PrivateSubnets pulumi.StringArrayOutput `pulumi:"PrivateSubnets"`
 }
 
 type Endpoints struct {
@@ -246,7 +248,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 // Optionally enable cloudwatch logging
 // FIXME: should be a method?
-func EnableFlowLoggingToCloudWatchLogs(ctx *pulumi.Context, name string, trafficType string, vpc ec2.Vpc) error {
+func (vpc Vpc) EnableFlowLoggingToCloudWatchLogs(ctx *pulumi.Context, name string, trafficType string) error {
 
 	// IAM policy principal
 	assumeRolePolicyJSON, err := json.Marshal(map[string]interface{}{
@@ -311,7 +313,7 @@ func EnableFlowLoggingToCloudWatchLogs(ctx *pulumi.Context, name string, traffic
 	_, err = ec2.NewFlowLog(ctx, fmt.Sprintf("%s-flow-logs", name), &ec2.FlowLogArgs{
 		LogDestination: flowlogLogGroup.Arn,
 		IamRoleArn:     flowLogsIAMRole.Arn,
-		VpcId:          vpc.ID(),
+		VpcId:          vpc.ID,
 		TrafficType:    pulumi.String(trafficType),
 	}, pulumi.Parent(flowLogsIAMRole))
 	if err != nil {
