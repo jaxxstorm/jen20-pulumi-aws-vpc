@@ -92,13 +92,20 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		return nil, err
 	}
 
+	// for storing the private subnets
+	var awsPrivateSubnets []ec2.Subnet
+
 	// loop over all the private subnets and create
 	for index, subnet := range privateSubnets {
-		_, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-private-%d", name, index+1), &ec2.SubnetArgs{
+		pSubnet, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-private-%d", name, index+1), &ec2.SubnetArgs{
 			VpcId:            awsVpc.ID(),
 			CidrBlock:        pulumi.String(subnet),
 			AvailabilityZone: args.AvailabilityZoneNames[index],
 		}, pulumi.Parent(awsVpc))
+
+		// append to slice of private subnets for use later
+		awsPrivateSubnets = append(awsPrivateSubnets, *pSubnet)
+
 		if err != nil {
 			return nil, err
 		}
@@ -151,6 +158,44 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		}
 	}
 
+	for index, subnet := range awsPrivateSubnets {
+		elasticIP, err := ec2.NewEip(ctx, fmt.Sprintf("%s-nat-%d", name, index+1), &ec2.EipArgs{}, pulumi.Parent(&subnet))
+		if err != nil {
+			return nil, err
+		}
+
+		natGateway, err := ec2.NewNatGateway(ctx, fmt.Sprintf("%s-nat-gateway-%d", name, index+1), &ec2.NatGatewayArgs{
+			AllocationId: elasticIP.ID(),
+			SubnetId:     awsPublicSubnets[index].ID(),
+		}, pulumi.Parent(&subnet))
+		if err != nil {
+			return nil, err
+		}
+
+		privateRouteTable, err := ec2.NewRouteTable(ctx, fmt.Sprintf("%s-private-rt-%d", name, index+1), &ec2.RouteTableArgs{
+			VpcId: awsVpc.ID(),
+		}, pulumi.Parent(awsVpc))
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = ec2.NewRoute(ctx, fmt.Sprintf("%s-route-private-sn-to-nat-%d", name, index+1), &ec2.RouteArgs{
+			RouteTableId:         subnet.ID(),
+			DestinationCidrBlock: pulumi.String("0.0.0.0/0"),
+			NatGatewayId:         natGateway.ID(),
+		}, pulumi.Parent(privateRouteTable))
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = ec2.NewRouteTableAssociation(ctx, fmt.Sprintf("%s-private-rta-%d", name, index+1), &ec2.RouteTableAssociationArgs{
+			SubnetId:     subnet.ID(),
+			RouteTableId: privateRouteTable.ID(),
+		}, pulumi.Parent(privateRouteTable))
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Register component resource
 	err = ctx.RegisterComponentResource("jen20:aws-vpc", name, vpc, opts...)
 	if err != nil {
