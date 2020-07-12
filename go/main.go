@@ -1,7 +1,11 @@
 package vpc
 
 import (
+	"encoding/json"
 	"fmt"
+
+	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/cloudwatch"
+	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/iam"
 
 	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/config"
 	"github.com/pulumi/pulumi-aws/sdk/v2/go/aws/ec2"
@@ -208,7 +212,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 	// set up endpoints
 	if args.Endpoints.S3 {
 		_, err = ec2.NewVpcEndpoint(ctx, fmt.Sprintf("%s-s3-endpoint", name), &ec2.VpcEndpointArgs{
-			VpcId: awsVpc.ID(),
+			VpcId:       awsVpc.ID(),
 			ServiceName: pulumi.String(fmt.Sprintf("com.amazonaws.%s.s3", config.GetRegion(ctx))),
 		}, pulumi.Parent(awsVpc))
 		if err != nil {
@@ -217,7 +221,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 	}
 	if args.Endpoints.DynamoDB {
 		_, err = ec2.NewVpcEndpoint(ctx, fmt.Sprintf("%s-dynamodb-endpoint", name), &ec2.VpcEndpointArgs{
-			VpcId: awsVpc.ID(),
+			VpcId:       awsVpc.ID(),
 			ServiceName: pulumi.String(fmt.Sprintf("com.amazonaws.%s.dynamodb", config.GetRegion(ctx))),
 		}, pulumi.Parent(awsVpc))
 		if err != nil {
@@ -238,4 +242,82 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 	})
 
 	return vpc, nil
+}
+
+// Optionally enable cloudwatch logging
+// FIXME: should be a method?
+func EnableFlowLoggingToCloudWatchLogs(ctx *pulumi.Context, name string, trafficType string, vpc ec2.Vpc) error {
+
+	// IAM policy principal
+	assumeRolePolicyJSON, err := json.Marshal(map[string]interface{}{
+		"Version": "2012-10-17",
+		"Statement": []interface{}{
+			map[string]interface{}{
+				"Action": "sts:AssumeRole",
+				"Principal": map[string]interface{}{
+					"Service": "vpc-flow-logs.amazonaws.com",
+				},
+				"Effect": "Allow",
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	flowLogsIAMRole, err := iam.NewRole(ctx, fmt.Sprintf("%s-flow-logs-role", name), &iam.RoleArgs{
+		Description:      pulumi.String(fmt.Sprintf("%s VPC Flow Logs", name)),
+		AssumeRolePolicy: pulumi.String(assumeRolePolicyJSON),
+	}, pulumi.Parent(&vpc))
+	if err != nil {
+		return err
+	}
+
+	flowlogLogGroup, err := cloudwatch.NewLogGroup(ctx, fmt.Sprintf("%s-vpc-flow-logs", name), &cloudwatch.LogGroupArgs{}, pulumi.Parent(flowLogsIAMRole))
+	if err != nil {
+		return err
+	}
+
+	// Role Policy
+	rolepolicyJSON, err := json.Marshal(map[string]interface{}{
+		"Version": "2012-10-17",
+		"Statement": []interface{}{
+			map[string]interface{}{
+				"Action": []string{"" +
+					"logs:CreateLogGroup",
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+					"logs:DescribeLogGroups",
+					"logs:DescribeLogStreams",
+				},
+				"Effect":   "Allow",
+				"Resource": "*",
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = iam.NewRolePolicy(ctx, fmt.Sprintf("%s-flow-log-policy", name), &iam.RolePolicyArgs{
+		Name:   pulumi.String("vpc-flow-logs"),
+		Role:   flowLogsIAMRole.ID(),
+		Policy: pulumi.String(rolepolicyJSON),
+	}, pulumi.Parent(flowLogsIAMRole))
+	if err != nil {
+		return err
+	}
+
+	_, err = ec2.NewFlowLog(ctx, fmt.Sprintf("%s-flow-logs", name), &ec2.FlowLogArgs{
+		LogDestination: flowlogLogGroup.Arn,
+		IamRoleArn:     flowLogsIAMRole.Arn,
+		VpcId:          vpc.ID(),
+		TrafficType:    pulumi.String(trafficType),
+	}, pulumi.Parent(flowLogsIAMRole))
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
