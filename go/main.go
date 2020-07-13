@@ -23,8 +23,8 @@ type Vpc struct {
 	Cidr           pulumi.StringOutput      `pulumi:"Cidr"`
 	Arn            pulumi.StringOutput      `pulumi:"Arn"`
 	Vpc            ec2.Vpc                  `pulumi:"Vpc"`
-	PublicSubnets  pulumi.StringArrayOutput `pulumi:"PublicSubnets"`
-	PrivateSubnets pulumi.StringArrayOutput `pulumi:"PrivateSubnets"`
+	PublicSubnets  pulumi.IDArrayOutput     `pulumi:"PublicSubnets"`
+	PrivateSubnets pulumi.IDArrayOutput     `pulumi:"PrivateSubnets"`
 }
 
 type Endpoints struct {
@@ -126,6 +126,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 	// for storing the private subnets
 	var awsPrivateSubnets []ec2.Subnet
+	var awsPrivateSubnetIDs []pulumi.IDOutput
 
 	// loop over all the private subnets and create
 	for index, subnet := range privateSubnets {
@@ -140,6 +141,8 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 		// append to slice of private subnets for use later
 		awsPrivateSubnets = append(awsPrivateSubnets, *pSubnet)
+		awsPrivateSubnetIDs = append(awsPrivateSubnetIDs, pSubnet.ID())
+
 
 		if err != nil {
 			return nil, err
@@ -148,6 +151,8 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 	// for storing the public subnets
 	var awsPublicSubnets []ec2.Subnet
+	var awsPublicSubnetIDs []pulumi.IDOutput
+
 	// loop over all the private subnets and create
 	for index, subnet := range publicSubnets {
 		pSubnet, err := ec2.NewSubnet(ctx, fmt.Sprintf("%s-public-%d", name, index+1), &ec2.SubnetArgs{
@@ -162,6 +167,7 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 
 		// append to a slice of public subnets for use later
 		awsPublicSubnets = append(awsPublicSubnets, *pSubnet)
+		awsPublicSubnetIDs = append(awsPublicSubnetIDs, pSubnet.ID())
 
 		if err != nil {
 			return nil, err
@@ -279,6 +285,8 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		"ID":   awsVpc.ID(),
 		"Cidr": awsVpc.CidrBlock,
 		"Arn":  awsVpc.Arn,
+		"PublicSubnets": idOutputArrayToIDArrayOutput(awsPublicSubnetIDs),
+		"PrivateSubnets": idOutputArrayToIDArrayOutput(awsPrivateSubnetIDs),
 	})
 
 	return vpc, nil
@@ -364,4 +372,18 @@ func (vpc Vpc) EnableFlowLoggingToCloudWatchLogs(ctx *pulumi.Context, name strin
 
 	return nil
 
+}
+
+func idOutputArrayToIDArrayOutput(as []pulumi.IDOutput) pulumi.IDArrayOutput {
+	var outputs []interface{}
+	for _, a := range as {
+		outputs = append(outputs, a)
+	}
+	return pulumi.All(outputs...).ApplyIDArray(func(vs []interface{}) []pulumi.ID {
+		var results []pulumi.ID
+		for _, v := range vs {
+			results = append(results, v.(pulumi.ID))
+		}
+		return results
+	})
 }
