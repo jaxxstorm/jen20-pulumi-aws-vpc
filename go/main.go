@@ -18,13 +18,13 @@ import (
 type Vpc struct {
 	pulumi.ResourceState
 
-	ID             pulumi.IDOutput          `pulumi:"ID"`
-	Args		   Args						`pulumi:"Args"`
-	Cidr           pulumi.StringOutput      `pulumi:"Cidr"`
-	Arn            pulumi.StringOutput      `pulumi:"Arn"`
-	Vpc            ec2.Vpc                  `pulumi:"Vpc"`
-	PublicSubnets  pulumi.IDArrayOutput     `pulumi:"PublicSubnets"`
-	PrivateSubnets pulumi.IDArrayOutput     `pulumi:"PrivateSubnets"`
+	ID             pulumi.IDOutput      `pulumi:"ID"`
+	Args           Args                 `pulumi:"Args"`
+	Cidr           pulumi.StringOutput  `pulumi:"Cidr"`
+	Arn            pulumi.StringOutput  `pulumi:"Arn"`
+	Vpc            ec2.Vpc              `pulumi:"Vpc"`
+	PublicSubnets  pulumi.IDArrayOutput `pulumi:"PublicSubnets"`
+	PrivateSubnets pulumi.IDArrayOutput `pulumi:"PrivateSubnets"`
 }
 
 type Endpoints struct {
@@ -142,7 +142,6 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 		// append to slice of private subnets for use later
 		awsPrivateSubnets = append(awsPrivateSubnets, *pSubnet)
 		awsPrivateSubnetIDs = append(awsPrivateSubnetIDs, pSubnet.ID())
-
 
 		if err != nil {
 			return nil, err
@@ -282,10 +281,10 @@ func NewVpc(ctx *pulumi.Context, name string, args Args, opts ...pulumi.Resource
 	}
 
 	ctx.RegisterResourceOutputs(vpc, pulumi.Map{
-		"ID":   awsVpc.ID(),
-		"Cidr": awsVpc.CidrBlock,
-		"Arn":  awsVpc.Arn,
-		"PublicSubnets": idOutputArrayToIDArrayOutput(awsPublicSubnetIDs),
+		"ID":             awsVpc.ID(),
+		"Cidr":           awsVpc.CidrBlock,
+		"Arn":            awsVpc.Arn,
+		"PublicSubnets":  idOutputArrayToIDArrayOutput(awsPublicSubnetIDs),
 		"PrivateSubnets": idOutputArrayToIDArrayOutput(awsPrivateSubnetIDs),
 	})
 
